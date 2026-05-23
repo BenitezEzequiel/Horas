@@ -8,6 +8,7 @@ import sqlite3
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "horas_extras.db"
+ALLOWED_TIPOS = {"horas_extras", "compensar", "dia_vale_extra"}
 
 
 def get_db():
@@ -23,7 +24,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS registros (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fecha TEXT NOT NULL,
-                tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar')),
+                tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra')),
                 cantidad REAL NOT NULL DEFAULT 0,
                 wo_cm TEXT,
                 nota TEXT,
@@ -34,6 +35,7 @@ def init_db():
             )
             """
         )
+        ensure_tipo_schema(conn)
         conn.execute(
             """
             CREATE TRIGGER IF NOT EXISTS registros_updated_at
@@ -44,6 +46,39 @@ def init_db():
             END;
             """
         )
+
+
+def ensure_tipo_schema(conn):
+    schema = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'registros'"
+    ).fetchone()
+    if not schema or "dia_vale_extra" in schema["sql"]:
+        return
+
+    conn.executescript(
+        """
+        DROP TRIGGER IF EXISTS registros_updated_at;
+        ALTER TABLE registros RENAME TO registros_old;
+        CREATE TABLE registros (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra')),
+            cantidad REAL NOT NULL DEFAULT 0,
+            wo_cm TEXT,
+            nota TEXT,
+            abonado INTEGER NOT NULL DEFAULT 0,
+            abonado_detalle TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO registros (
+            id, fecha, tipo, cantidad, wo_cm, nota, abonado, abonado_detalle, created_at, updated_at
+        )
+        SELECT id, fecha, tipo, cantidad, wo_cm, nota, abonado, abonado_detalle, created_at, updated_at
+        FROM registros_old;
+        DROP TABLE registros_old;
+        """
+    )
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -99,6 +134,7 @@ class Handler(BaseHTTPRequestHandler):
                            SUM(cantidad) AS total,
                            SUM(CASE WHEN tipo = 'horas_extras' THEN cantidad ELSE 0 END) AS extras,
                            SUM(CASE WHEN tipo = 'compensar' THEN cantidad ELSE 0 END) AS compensar,
+                           SUM(CASE WHEN tipo = 'dia_vale_extra' THEN cantidad ELSE 0 END) AS dia_vale_extra,
                            COUNT(*) AS registros,
                            SUM(abonado) AS abonados
                     FROM registros
@@ -237,8 +273,8 @@ class Handler(BaseHTTPRequestHandler):
 def validate_registro(data):
     if not data.get("fecha"):
         return "La fecha es obligatoria."
-    if data.get("tipo") not in {"horas_extras", "compensar"}:
-        return "El tipo debe ser horas extras o a compensar."
+    if data.get("tipo") not in ALLOWED_TIPOS:
+        return "El tipo debe ser horas extras, a compensar o dia por vale de extra."
     try:
         cantidad = float(data.get("cantidad", 0))
     except (TypeError, ValueError):

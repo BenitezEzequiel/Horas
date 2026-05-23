@@ -28,6 +28,7 @@ const els = {
   totalHoras: $("#totalHoras"),
   totalExtras: $("#totalExtras"),
   totalCompensar: $("#totalCompensar"),
+  totalDiaVale: $("#totalDiaVale"),
   totalAbonados: $("#totalAbonados"),
   noteDialog: $("#noteDialog"),
   noteContent: $("#noteContent"),
@@ -39,7 +40,12 @@ function formatHours(value) {
 }
 
 function displayType(type) {
-  return type === "horas_extras" ? "Horas extras" : "A compensar";
+  const labels = {
+    horas_extras: "Horas extras",
+    compensar: "A compensar",
+    dia_vale_extra: "Dia por vale de extra",
+  };
+  return labels[type] || type;
 }
 
 function monthLabel(month) {
@@ -86,13 +92,15 @@ function renderSummaryCards() {
       acc.abonados += entry.abonado ? 1 : 0;
       if (entry.tipo === "horas_extras") acc.extras += Number(entry.cantidad);
       if (entry.tipo === "compensar") acc.compensar += Number(entry.cantidad);
+      if (entry.tipo === "dia_vale_extra") acc.diaVale += Number(entry.cantidad);
       return acc;
     },
-    { total: 0, extras: 0, compensar: 0, abonados: 0 }
+    { total: 0, extras: 0, compensar: 0, diaVale: 0, abonados: 0 }
   );
   els.totalHoras.textContent = formatHours(totals.total);
   els.totalExtras.textContent = formatHours(totals.extras);
   els.totalCompensar.textContent = formatHours(totals.compensar);
+  els.totalDiaVale.textContent = formatHours(totals.diaVale);
   els.totalAbonados.textContent = totals.abonados;
 }
 
