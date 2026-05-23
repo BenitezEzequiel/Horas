@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Horas extras</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Control mensual</p>
+          <h1>Horas extras y compensaciones</h1>
+        </div>
+        <div class="month-picker">
+          <button id="prevMonth" type="button" aria-label="Mes anterior">‹</button>
+          <input id="monthInput" type="month">
+          <button id="nextMonth" type="button" aria-label="Mes siguiente">›</button>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Resumen del mes">
+        <article>
+          <span>Total cargado</span>
+          <strong id="totalHoras">0 h</strong>
+        </article>
+        <article>
+          <span>Horas extras</span>
+          <strong id="totalExtras">0 h</strong>
+        </article>
+        <article>
+          <span>A compensar</span>
+          <strong id="totalCompensar">0 h</strong>
+        </article>
+        <article>
+          <span>Abonados</span>
+          <strong id="totalAbonados">0</strong>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <form id="entryForm" class="panel form-panel">
+          <div class="panel-header">
+            <h2 id="formTitle">Nueva carga</h2>
+            <button id="clearForm" type="button" class="ghost">Limpiar</button>
+          </div>
+
+          <input id="entryId" type="hidden">
+
+          <label>
+            Dia trabajado
+            <input id="fecha" type="date" required>
+          </label>
+
+          <div class="field-row">
+            <label>
+              Tipo
+              <select id="tipo" required>
+                <option value="horas_extras">Horas extras</option>
+                <option value="compensar">A compensar</option>
+              </select>
+            </label>
+            <label>
+              Cantidad
+              <input id="cantidad" type="number" min="0.25" step="0.25" placeholder="Ej: 2.5" required>
+            </label>
+          </div>
+
+          <label>
+            WO-CM
+            <input id="woCm" type="text" placeholder="Opcional">
+          </label>
+
+          <label>
+            Nota
+            <textarea id="nota" rows="4" placeholder="Detalle del trabajo realizado"></textarea>
+          </label>
+
+          <label class="checkline">
+            <input id="abonado" type="checkbox">
+            <span>Ya fue abonado</span>
+          </label>
+
+          <label>
+            Abonado en
+            <input id="abonadoDetalle" type="text" placeholder="Ej: Recibo mayo, efectivo, banco">
+          </label>
+
+          <button class="primary" type="submit">Guardar carga</button>
+          <p id="formMessage" class="message" role="status"></p>
+        </form>
+
+        <section class="panel calendar-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="calendarTitle">Calendario</h2>
+              <p>Los dias con carga se resaltan segun la cantidad registrada.</p>
+            </div>
+          </div>
+          <div class="weekdays">
+            <span>Lun</span><span>Mar</span><span>Mie</span><span>Jue</span><span>Vie</span><span>Sab</span><span>Dom</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Checklist mensual</h2>
+            <p>Marca abonado, revisa notas o edita cada carga del mes.</p>
+          </div>
+        </div>
+        <div id="entriesList" class="entries-list"></div>
+      </section>
+    </main>
+
+    <dialog id="noteDialog">
+      <form method="dialog">
+        <header>
+          <h2>Notas de la carga</h2>
+          <button value="close" aria-label="Cerrar">×</button>
+        </header>
+        <pre id="noteContent"></pre>
+      </form>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
