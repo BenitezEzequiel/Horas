@@ -124,7 +124,7 @@ textarea:focus {
 .summary-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   margin-bottom: 16px;
 }
 
@@ -211,6 +211,22 @@ label {
   padding: 0 16px;
 }
 
+.button-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.secondary {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: var(--warn);
+  font-weight: 700;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
 .primary:hover {
   background: var(--accent-dark);
 }
@@ -267,6 +283,11 @@ label {
 
 .calendar-day.low {
   background: #ecfdf3;
+}
+
+.calendar-day.absent {
+  background: #fee2e2;
+  border-color: rgba(180, 35, 24, 0.36);
 }
 
 .day-number {

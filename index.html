@@ -38,6 +38,10 @@
           <strong id="totalDiaVale">0 h</strong>
         </article>
         <article>
+          <span>Dias faltados</span>
+          <strong id="totalFaltados">0</strong>
+        </article>
+        <article>
           <span>Abonados</span>
           <strong id="totalAbonados">0</strong>
         </article>
@@ -64,6 +68,7 @@
                 <option value="horas_extras">Horas extras</option>
                 <option value="compensar">A compensar</option>
                 <option value="dia_vale_extra">Dia por vale de extra</option>
+                <option value="dia_faltado">Dia faltado</option>
               </select>
             </label>
             <label>
@@ -92,7 +97,10 @@
             <input id="abonadoDetalle" type="text" placeholder="Ej: Recibo mayo, efectivo, banco">
           </label>
 
-          <button class="primary" type="submit">Guardar carga</button>
+          <div class="button-row">
+            <button class="primary" type="submit">Guardar carga</button>
+            <button id="saveAbsentDay" class="secondary" type="button">Dia faltado</button>
+          </div>
           <p id="formMessage" class="message" role="status"></p>
         </form>
 
@@ -100,7 +108,7 @@
           <div class="panel-header">
             <div>
               <h2 id="calendarTitle">Calendario</h2>
-              <p>Los dias con carga se resaltan segun la cantidad registrada.</p>
+              <p>Los dias con carga se resaltan segun la cantidad registrada; los faltados se muestran aparte.</p>
             </div>
           </div>
           <div class="weekdays">

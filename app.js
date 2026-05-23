@@ -29,9 +29,11 @@ const els = {
   totalExtras: $("#totalExtras"),
   totalCompensar: $("#totalCompensar"),
   totalDiaVale: $("#totalDiaVale"),
+  totalFaltados: $("#totalFaltados"),
   totalAbonados: $("#totalAbonados"),
   noteDialog: $("#noteDialog"),
   noteContent: $("#noteContent"),
+  saveAbsentDay: $("#saveAbsentDay"),
 };
 
 function formatHours(value) {
@@ -44,8 +46,13 @@ function displayType(type) {
     horas_extras: "Horas extras",
     compensar: "A compensar",
     dia_vale_extra: "Dia por vale de extra",
+    dia_faltado: "Dia faltado",
   };
   return labels[type] || type;
+}
+
+function isAbsentDay(entry) {
+  return entry.tipo === "dia_faltado";
 }
 
 function monthLabel(month) {
@@ -93,14 +100,16 @@ function renderSummaryCards() {
       if (entry.tipo === "horas_extras") acc.extras += Number(entry.cantidad);
       if (entry.tipo === "compensar") acc.compensar += Number(entry.cantidad);
       if (entry.tipo === "dia_vale_extra") acc.diaVale += Number(entry.cantidad);
+      if (isAbsentDay(entry)) acc.faltados += 1;
       return acc;
     },
-    { total: 0, extras: 0, compensar: 0, diaVale: 0, abonados: 0 }
+    { total: 0, extras: 0, compensar: 0, diaVale: 0, faltados: 0, abonados: 0 }
   );
   els.totalHoras.textContent = formatHours(totals.total);
   els.totalExtras.textContent = formatHours(totals.extras);
   els.totalCompensar.textContent = formatHours(totals.compensar);
   els.totalDiaVale.textContent = formatHours(totals.diaVale);
+  els.totalFaltados.textContent = totals.faltados;
   els.totalAbonados.textContent = totals.abonados;
 }
 
@@ -122,13 +131,14 @@ function renderCalendar() {
     const date = `${state.month}-${String(day).padStart(2, "0")}`;
     const summary = byDate.get(date);
     const total = Number(summary?.total || 0);
+    const absentDays = Number(summary?.dias_faltados || 0);
     const level = total >= 6 ? "high" : total >= 3 ? "medium" : total > 0 ? "low" : "";
     const cell = document.createElement("button");
     cell.type = "button";
-    cell.className = `calendar-day ${total ? `has-hours ${level}` : ""}`.trim();
+    cell.className = `calendar-day ${total ? `has-hours ${level}` : ""} ${absentDays ? "absent" : ""}`.trim();
     cell.innerHTML = `
       <span class="day-number">${day}</span>
-      <span class="day-total">${total ? formatHours(total) : ""}</span>
+      <span class="day-total">${absentDays ? "Faltado" : total ? formatHours(total) : ""}</span>
       <span class="day-meta">${summary ? `${summary.registros} carga(s)` : ""}</span>
     `;
     cell.addEventListener("click", () => {
@@ -147,12 +157,13 @@ function renderEntries() {
 
   els.entriesList.innerHTML = "";
   state.entries.forEach((entry) => {
+    const amountText = isAbsentDay(entry) ? "Sin horas" : formatHours(entry.cantidad);
     const item = document.createElement("article");
     item.className = "entry";
     item.innerHTML = `
       <input type="checkbox" ${entry.abonado ? "checked" : ""} aria-label="Marcar abonado">
       <div class="entry-main">
-        <strong>${entry.fecha} · ${formatHours(entry.cantidad)} · ${displayType(entry.tipo)}</strong>
+        <strong>${entry.fecha} · ${amountText} · ${displayType(entry.tipo)}</strong>
         <div class="entry-meta">
           ${entry.wo_cm ? `<span class="pill">WO-CM: ${escapeHtml(entry.wo_cm)}</span>` : ""}
           <span class="pill ${entry.abonado ? "paid" : ""}">${entry.abonado ? "Abonado" : "Pendiente"}</span>
@@ -197,6 +208,7 @@ function fillForm(entry) {
   els.abonado.checked = Boolean(entry.abonado);
   els.abonadoDetalle.value = entry.abonado_detalle || "";
   els.fecha.focus();
+  syncCantidadField();
 }
 
 function resetForm() {
@@ -205,13 +217,14 @@ function resetForm() {
   els.entryId.value = "";
   els.fecha.value = `${state.month}-${String(new Date().getDate()).padStart(2, "0")}`;
   els.formMessage.textContent = "";
+  syncCantidadField();
 }
 
 function showNote(entry) {
   const lines = [
     `Fecha: ${entry.fecha}`,
     `Tipo: ${displayType(entry.tipo)}`,
-    `Cantidad: ${formatHours(entry.cantidad)}`,
+    `Cantidad: ${isAbsentDay(entry) ? "Sin horas" : formatHours(entry.cantidad)}`,
     entry.wo_cm ? `WO-CM: ${entry.wo_cm}` : "",
     entry.abonado_detalle ? `Abonado en: ${entry.abonado_detalle}` : "",
     "",
@@ -240,12 +253,26 @@ function shiftMonth(delta) {
   loadMonth();
 }
 
+function syncCantidadField() {
+  const absent = els.tipo.value === "dia_faltado";
+  els.cantidad.disabled = absent;
+  els.cantidad.required = !absent;
+  els.cantidad.min = absent ? "0" : "0.25";
+  if (absent) {
+    els.cantidad.value = "0";
+    els.cantidad.placeholder = "Sin horas";
+  } else {
+    if (els.cantidad.value === "0") els.cantidad.value = "";
+    els.cantidad.placeholder = "Ej: 2.5";
+  }
+}
+
 els.entryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = {
     fecha: els.fecha.value,
     tipo: els.tipo.value,
-    cantidad: els.cantidad.value,
+    cantidad: els.tipo.value === "dia_faltado" ? 0 : els.cantidad.value,
     wo_cm: els.woCm.value,
     nota: els.nota.value,
     abonado: els.abonado.checked,
@@ -269,7 +296,36 @@ els.entryForm.addEventListener("submit", async (event) => {
   }
 });
 
+els.saveAbsentDay.addEventListener("click", async () => {
+  els.tipo.value = "dia_faltado";
+  syncCantidadField();
+  if (!els.fecha.value) {
+    els.formMessage.textContent = "Elegí una fecha para cargar el dia faltado.";
+    els.fecha.focus();
+    return;
+  }
+  const payload = {
+    fecha: els.fecha.value,
+    tipo: "dia_faltado",
+    cantidad: 0,
+    wo_cm: els.woCm.value,
+    nota: els.nota.value || "Dia faltado",
+    abonado: false,
+    abonado_detalle: els.abonadoDetalle.value,
+  };
+  try {
+    await api("/api/registros", { method: "POST", body: JSON.stringify(payload) });
+    els.formMessage.textContent = "Dia faltado guardado.";
+    state.month = payload.fecha.slice(0, 7);
+    await loadMonth();
+    resetForm();
+  } catch (error) {
+    els.formMessage.textContent = error.message;
+  }
+});
+
 els.clearForm.addEventListener("click", resetForm);
+els.tipo.addEventListener("change", syncCantidadField);
 els.monthInput.addEventListener("change", () => {
   state.month = els.monthInput.value;
   resetForm();

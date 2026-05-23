@@ -8,7 +8,7 @@ import sqlite3
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "horas_extras.db"
-ALLOWED_TIPOS = {"horas_extras", "compensar", "dia_vale_extra"}
+ALLOWED_TIPOS = {"horas_extras", "compensar", "dia_vale_extra", "dia_faltado"}
 
 
 def get_db():
@@ -24,7 +24,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS registros (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fecha TEXT NOT NULL,
-                tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra')),
+                tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra', 'dia_faltado')),
                 cantidad REAL NOT NULL DEFAULT 0,
                 wo_cm TEXT,
                 nota TEXT,
@@ -52,7 +52,7 @@ def ensure_tipo_schema(conn):
     schema = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'registros'"
     ).fetchone()
-    if not schema or "dia_vale_extra" in schema["sql"]:
+    if not schema or all(tipo in schema["sql"] for tipo in ALLOWED_TIPOS):
         return
 
     conn.executescript(
@@ -62,7 +62,7 @@ def ensure_tipo_schema(conn):
         CREATE TABLE registros (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fecha TEXT NOT NULL,
-            tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra')),
+            tipo TEXT NOT NULL CHECK(tipo IN ('horas_extras', 'compensar', 'dia_vale_extra', 'dia_faltado')),
             cantidad REAL NOT NULL DEFAULT 0,
             wo_cm TEXT,
             nota TEXT,
@@ -135,6 +135,7 @@ class Handler(BaseHTTPRequestHandler):
                            SUM(CASE WHEN tipo = 'horas_extras' THEN cantidad ELSE 0 END) AS extras,
                            SUM(CASE WHEN tipo = 'compensar' THEN cantidad ELSE 0 END) AS compensar,
                            SUM(CASE WHEN tipo = 'dia_vale_extra' THEN cantidad ELSE 0 END) AS dia_vale_extra,
+                           SUM(CASE WHEN tipo = 'dia_faltado' THEN 1 ELSE 0 END) AS dias_faltados,
                            COUNT(*) AS registros,
                            SUM(abonado) AS abonados
                     FROM registros
@@ -274,11 +275,15 @@ def validate_registro(data):
     if not data.get("fecha"):
         return "La fecha es obligatoria."
     if data.get("tipo") not in ALLOWED_TIPOS:
-        return "El tipo debe ser horas extras, a compensar o dia por vale de extra."
+        return "El tipo debe ser horas extras, a compensar, dia por vale de extra o dia faltado."
     try:
         cantidad = float(data.get("cantidad", 0))
     except (TypeError, ValueError):
         return "La cantidad debe ser numerica."
+    if data.get("tipo") == "dia_faltado":
+        if cantidad != 0:
+            return "El dia faltado debe cargarse sin cantidad de horas."
+        return None
     if cantidad <= 0:
         return "La cantidad debe ser mayor a cero."
     return None
